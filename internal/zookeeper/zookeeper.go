@@ -4,6 +4,17 @@ package zookeeper
 #cgo LDFLAGS: -L/usr/local/lib -lzookeeper_mt
 #include <zookeeper/zookeeper.h>
 
+void zk_set_logger(const char* time) {
+    char log_file_path[51];
+    sprintf(log_file_path, "logs/zookeeper_%s.log", time);
+    FILE *logFile = fopen(log_file_path, "a");
+    if (logFile == NULL) {
+        perror("zk set logger failed");
+        return;
+    }
+    zoo_set_log_stream(logFile);
+}
+
 void watcher(zhandle_t *zzh, int type, int state, const char *path, void *watcherCtx) {
     int *ctx = (int*) watcherCtx;
     if (state == ZOO_CONNECTED_STATE) {
@@ -33,6 +44,10 @@ var once sync.Once
 
 func New(host string) *ZooKeeper {
 	once.Do(func() {
+        timeStr := time.Now().Format("2006-01-02-15h-04m-05s")
+        cTimeStr := C.CString(timeStr)
+        defer C.free(unsafe.Pointer(cTimeStr))
+        C.zk_set_logger(cTimeStr)
 		instance = new(host)
 	})
 	return instance
@@ -61,10 +76,8 @@ func new(host string) *ZooKeeper {
 		if ctx == 1 || ctx == -1 {
 			break
 		}
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(51 * time.Millisecond)
 	}
-
-	fmt.Println("ctx: ", int(ctx))
 
 	return &ZooKeeper{
 		zh:        zh,
